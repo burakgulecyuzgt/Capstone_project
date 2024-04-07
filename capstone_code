@@ -1,0 +1,65 @@
+import pandas as pd
+
+# Veri dosyalarının yolları
+path_2019 = 'C:\\Users\\burak\\OneDrive\\Desktop\\Capstone\\Jan_2019_ontime.csv'
+path_2020 = 'C:\\Users\\burak\\OneDrive\\Desktop\\Capstone\\Jan_2020_ontime.csv'
+
+# Verileri yükleme
+df_2019 = pd.read_csv(path_2019)
+df_2020 = pd.read_csv(path_2020)
+
+# İlk veri setinin (2019) temel bilgilerini ve ilk 5 satırını göster
+df_2019_info = df_2019.info()
+df_2019_head = df_2019.head()
+
+df_2019_info, df_2019_head
+# 'Unnamed: 21' sütununu kaldırma
+df_2019_cleaned = df_2019.drop(columns=['Unnamed: 21'])
+
+# 'DEP_DEL15' ve 'ARR_DEL15' sütunlarındaki eksik değerleri kaldırma
+# Bu sütunlar, modelimiz için önemli olduğundan ve eksik değerlerin doldurulması zor olduğundan
+# eksik değer içeren satırları silmeyi tercih ediyoruz.
+df_2019_cleaned.dropna(subset=['DEP_DEL15', 'ARR_DEL15'], inplace=True)
+
+# Eksik değerlerle ilgili durumu kontrol etmek için tekrar bilgi alalım
+df_2019_cleaned_info = df_2019_cleaned.info()
+df_2019_cleaned_info
+# Temizlenmiş 2019 veri setinin ilk 5 satırını gösterme
+df_2019_cleaned_head = df_2019_cleaned.head()
+df_2019_cleaned_head
+from datetime import datetime, timedelta
+import calendar
+
+# Saat bilgisini düzelten ve gerekirse tarihi bir gün ileri alan bir fonksiyon
+def adjust_datetime(row):
+    year = 2019
+    month = 1
+    day = row['DAY_OF_MONTH']
+    time_str = row['DEP_TIME_STR']
+    
+    # '24:00' saati '00:00' olarak değiştir ve tarihi bir gün ileri al
+    if time_str == '2400':
+        time_str = '0000'
+        day += 1
+    
+    # Ayın gün sayısını kontrol et ve gerekirse ayı ve/veya yılı ileri al
+    _, last_day_of_month = calendar.monthrange(year, month)
+    if day > last_day_of_month:
+        day = 1
+        month += 1
+        # Ay 13 olursa, yılı artır ve ayı 1 yap
+        if month > 12:
+            month = 1
+            year += 1
+            
+    datetime_str = f"{year}-{month:02d}-{day:02d} {time_str[:2]}:{time_str[2:]}"
+    return datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+
+# DEP_TIME sütunundaki değerleri string formatına dönüştürme ve 4 karakter uzunluğunda olacak şekilde ayarlama
+df_2019_cleaned['DEP_TIME_STR'] = df_2019_cleaned['DEP_TIME'].apply(lambda x: str(int(x)).zfill(4))
+
+# adjust_datetime fonksiyonunu kullanarak 'DATETIME' sütunu oluşturma
+df_2019_cleaned['DATETIME'] = df_2019_cleaned.apply(adjust_datetime, axis=1)
+
+# İlk 5 satırı kontrol etmek için
+df_2019_cleaned[['DAY_OF_MONTH', 'DEP_TIME', 'DEP_TIME_STR', 'DATETIME']].head()
